@@ -73,12 +73,18 @@
 				}
 				break;
 			case this.options.keyBindings.end:
-				newX = snap ? this.pages.length-1 : this.maxScrollX;
-				newY = snap ? this.pages[0].length-1 : this.maxScrollY;
+        if ( this.hasHorizontalScroll && !this.hasVerticalScroll ) {
+          newX -= snap ? 1 : this.wrapperWidth;
+        } else {
+          newY -= snap ? 1 : this.wrapperHeight;
+        }
 				break;
 			case this.options.keyBindings.home:
-				newX = 0;
-				newY = 0;
+        if ( this.hasHorizontalScroll && !this.hasVerticalScroll ) {
+          newX += snap ? 1 : this.wrapperWidth;
+        } else {
+          newY += snap ? 1 : this.wrapperHeight;
+        }
 				break;
 			case this.options.keyBindings.left:
 				newX += snap ? -1 : 5 + this.keyAcceleration>>0;

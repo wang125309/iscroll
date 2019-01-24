@@ -58,13 +58,6 @@ function IScroll (el, options) {
 		this.options.tap = 'tap';
 	}
 
-	// https://github.com/cubiq/iscroll/issues/1029
-	if (!this.options.useTransition && !this.options.useTransform) {
-		if(!(/relative|absolute/i).test(this.scrollerStyle.position)) {
-			this.scrollerStyle.position = "relative";
-		}
-	}
-
 // INSERT POINT: NORMALIZATION
 
 	// Some defaults
@@ -337,7 +330,6 @@ IScroll.prototype = {
 			if ( newX > 0 || newX < this.maxScrollX || newY > 0 || newY < this.maxScrollY ) {
 				easing = utils.ease.quadratic;
 			}
-
 			this.scrollTo(newX, newY, time, easing);
 			return;
 		}
@@ -376,7 +368,6 @@ IScroll.prototype = {
 		if ( x == this.x && y == this.y ) {
 			return false;
 		}
-
 		this.scrollTo(x, y, time, this.options.bounceEasing);
 
 		return true;
@@ -391,16 +382,15 @@ IScroll.prototype = {
 	},
 
 	refresh: function () {
-		utils.getRect(this.wrapper);		// Force reflow
+		var rf = this.wrapper.offsetHeight;		// Force reflow
 
 		this.wrapperWidth	= this.wrapper.clientWidth;
 		this.wrapperHeight	= this.wrapper.clientHeight;
 
-		var rect = utils.getRect(this.scroller);
 /* REPLACE START: refresh */
 
-		this.scrollerWidth	= rect.width;
-		this.scrollerHeight	= rect.height;
+		this.scrollerWidth	= this.scroller.offsetWidth;
+		this.scrollerHeight	= this.scroller.offsetHeight;
 
 		this.maxScrollX		= this.wrapperWidth - this.scrollerWidth;
 		this.maxScrollY		= this.wrapperHeight - this.scrollerHeight;
@@ -409,7 +399,7 @@ IScroll.prototype = {
 
 		this.hasHorizontalScroll	= this.options.scrollX && this.maxScrollX < 0;
 		this.hasVerticalScroll		= this.options.scrollY && this.maxScrollY < 0;
-		
+
 		if ( !this.hasHorizontalScroll ) {
 			this.maxScrollX = 0;
 			this.scrollerWidth = this.wrapperWidth;
@@ -423,26 +413,15 @@ IScroll.prototype = {
 		this.endTime = 0;
 		this.directionX = 0;
 		this.directionY = 0;
-		
-		if(utils.hasPointer && !this.options.disablePointer) {
-			// The wrapper should have `touchAction` property for using pointerEvent.
-			this.wrapper.style[utils.style.touchAction] = utils.getTouchAction(this.options.eventPassthrough, true);
 
-			// case. not support 'pinch-zoom'
-			// https://github.com/cubiq/iscroll/issues/1118#issuecomment-270057583
-			if (!this.wrapper.style[utils.style.touchAction]) {
-				this.wrapper.style[utils.style.touchAction] = utils.getTouchAction(this.options.eventPassthrough, false);
-			}
-		}
 		this.wrapperOffset = utils.offset(this.wrapper);
-
 		this._execEvent('refresh');
 
 		this.resetPosition();
 
 // INSERT POINT: _refresh
 
-	},	
+	},
 
 	on: function (type, fn) {
 		if ( !this._events[type] ) {
@@ -488,18 +467,22 @@ IScroll.prototype = {
 
 		this.scrollTo(x, y, time, easing);
 	},
-
+  // User addon
+  lastY: 0,
+  // Resize
 	scrollTo: function (x, y, time, easing) {
 		easing = easing || utils.ease.circular;
-
 		this.isInTransition = this.options.useTransition && time > 0;
 		var transitionType = this.options.useTransition && easing.style;
 		if ( !time || transitionType ) {
-				if(transitionType) {
-					this._transitionTimingFunction(easing.style);
-					this._transitionTime(time);
-				}
-			this._translate(x, y);
+      if(transitionType) {
+        this._transitionTimingFunction(easing.style);
+        this._transitionTime(time);
+      }
+      if ((y === 0 && this.lastY === 0) || this.lastY !== y && Math.abs(this.lastY - y) <= document.body.clientHeight + 10) {
+        this._translate(x, y);
+        this.lastY = y;
+      }
 		} else {
 			this._animate(x, y, time, easing.fn);
 		}
@@ -518,13 +501,11 @@ IScroll.prototype = {
 		pos.top  -= this.wrapperOffset.top;
 
 		// if offsetX/Y are true we center the element to the screen
-		var elRect = utils.getRect(el);
-		var wrapperRect = utils.getRect(this.wrapper);
 		if ( offsetX === true ) {
-			offsetX = Math.round(elRect.width / 2 - wrapperRect.width / 2);
+			offsetX = Math.round(el.offsetWidth / 2 - this.wrapper.offsetWidth / 2);
 		}
 		if ( offsetY === true ) {
-			offsetY = Math.round(elRect.height / 2 - wrapperRect.height / 2);
+			offsetY = Math.round(el.offsetHeight / 2 - this.wrapper.offsetHeight / 2);
 		}
 
 		pos.left -= offsetX || 0;
@@ -539,15 +520,9 @@ IScroll.prototype = {
 	},
 
 	_transitionTime: function (time) {
-		if (!this.options.useTransition) {
-			return;
-		}
 		time = time || 0;
-		var durationProp = utils.style.transitionDuration;
-		if(!durationProp) {
-			return;
-		}
 
+		var durationProp = utils.style.transitionDuration;
 		this.scrollerStyle[durationProp] = time + 'ms';
 
 		if ( !time && utils.isBadAndroid ) {
